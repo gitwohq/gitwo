@@ -156,12 +156,12 @@ docker_manifests:
       - "ghcr.io/gitwohq/gitwo:latest-amd64"
       - "ghcr.io/gitwohq/gitwo:latest-arm64"
 
-# SBOM (Syft) for archives and images — give unique IDs
+# SBOMs (Syft) — GoReleaser can catalog archives/binaries/etc. (NOT container images)
 sboms:
-  - id: sbom_archives
+  - id: archive-sbom
     artifacts: archive
-  - id: sbom_images
-    artifacts: image
+    documents:
+      - "{{ .ArtifactName }}.sbom.json"
 
 # Signing (Cosign) — checksums.txt
 # v2: use 'artifacts' (not 'artifact')
