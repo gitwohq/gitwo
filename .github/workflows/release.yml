@@ -49,17 +49,12 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Install Syft so GoReleaser's SBOM step can run
+      # Install Syft so GoReleaser's SBOM step can run (install to /usr/local/bin so PATH sees it)
       - name: Install Syft (for SBOM)
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/bin"
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b "$HOME/bin"
-          echo "$HOME/bin" >> "$GITHUB_PATH"
-
-      # Verify Syft is on PATH (this is a NEW step so $GITHUB_PATH is applied)
-      - name: Verify Syft
-        run: syft version
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sudo bash -s -- -b /usr/local/bin
+          syft version
 
       # Install cosign only when a private key is provided
       - name: Install cosign (optional)
