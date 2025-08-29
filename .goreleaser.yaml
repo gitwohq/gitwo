@@ -19,19 +19,13 @@ builds:
       - -X main.version={{ .Version }}
       - -X main.commit={{ .Commit }}
       - -X main.date={{ .Date }}
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
     ignore:
       - goos: windows
         goarch: arm64
 
-# (optional) build a single universal binary for macOS
-# keep per-arch darwin builds so archives exist for Homebrew
+# Keep per-arch darwin builds so archives exist for Homebrew
 universal_binaries:
   - id: gitwo_universal_darwin
     ids: [main]
@@ -60,8 +54,7 @@ changelog:
       - '^test:'
       - '^ci:'
 
-# Homebrew Formula (NOT a cask) → github.com/gitwohq/homebrew-tap
-# limit Homebrew matrix to the arches you actually build
+# Homebrew Formula → github.com/gitwohq/homebrew-tap
 brews:
   - name: gitwo
     ids: [main]
@@ -76,8 +69,6 @@ brews:
     description: "Git Workspace companion CLI"
     license: "MIT"
     directory: Formula
-    goos: [darwin, linux]
-    goarch: [amd64, arm64]     # <—— critical; prevents goarch=arm looking for non-existent archives
     install: |
       bin.install "gitwo"
       # Ship pre-generated shell completions from the archive:
@@ -108,7 +99,6 @@ nfpms:
 
 # Docker images (multi-arch) to GHCR
 dockers:
-  # amd64 image
   - id: docker_amd64
     ids: [main]
     image_templates:
@@ -128,7 +118,6 @@ dockers:
     goos: linux
     goarch: amd64
 
-  # arm64 image
   - id: docker_arm64
     ids: [main]
     image_templates:
@@ -148,7 +137,6 @@ dockers:
     goos: linux
     goarch: arm64
 
-# Publish multi-arch manifests that point to the two images above
 docker_manifests:
   - name_template: "ghcr.io/gitwohq/gitwo:{{ .Tag }}"
     image_templates:
@@ -159,7 +147,7 @@ docker_manifests:
       - "ghcr.io/gitwohq/gitwo:latest-amd64"
       - "ghcr.io/gitwohq/gitwo:latest-arm64"
 
-# SBOMs (Syft) — GoReleaser can catalog archives/binaries/etc. (NOT container images)
+# SBOMs (Syft) — archives only
 sboms:
   - id: archive-sbom
     artifacts: archive
