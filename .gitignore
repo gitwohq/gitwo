@@ -2,6 +2,7 @@
 bin/
 dist/
 .build-checksum
+.gitwo/
 
 # Local secrets
 .secrets.env
