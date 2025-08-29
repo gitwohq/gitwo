@@ -1,0 +1,7 @@
+# Dockerfile.runtime
+FROM alpine:3.20
+RUN apk --no-cache add ca-certificates
+# GoReleaser injects the already-built binary into the docker build context.
+# The file is named exactly like your binary: "gitwo".
+COPY gitwo /usr/local/bin/gitwo
+ENTRYPOINT ["gitwo"]

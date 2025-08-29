@@ -1,0 +1,5 @@
+.git
+dist
+coverage.out
+*.zip
+*.patch

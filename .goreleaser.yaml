@@ -25,7 +25,7 @@ builds:
       - goos: windows
         goarch: arm64
 
-# Keep per-arch darwin archives; brew needs them
+# Keep per-arch darwin builds so archives exist for Homebrew
 universal_binaries:
   - id: gitwo_universal_darwin
     ids: [main]
@@ -57,7 +57,6 @@ changelog:
 # Homebrew Formula → github.com/gitwohq/homebrew-tap
 brews:
   - name: gitwo
-    # IMPORTANT: reference the *archive* id, not build id
     ids: [default]
     repository:
       owner: gitwohq
@@ -72,7 +71,7 @@ brews:
     directory: Formula
     install: |
       bin.install "gitwo"
-      # Install pre-generated shell completions shipped inside the archive
+      # Ship pre-generated shell completions from the archive:
       bash_completion.install "completions/gitwo.bash" => "gitwo"
       zsh_completion.install  "completions/gitwo.zsh"  => "_gitwo"
       fish_completion.install "completions/gitwo.fish" => "gitwo.fish"
@@ -106,9 +105,8 @@ dockers:
       - "ghcr.io/gitwohq/gitwo:{{ .Tag }}-amd64"
       - "ghcr.io/gitwohq/gitwo:latest-amd64"
     use: buildx
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.runtime
     build_flag_templates:
-      - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.title=gitwo"
       - "--label=org.opencontainers.image.description=Git Workspace companion CLI"
       - "--label=org.opencontainers.image.url=https://gitwo.dev"
@@ -125,9 +123,8 @@ dockers:
       - "ghcr.io/gitwohq/gitwo:{{ .Tag }}-arm64"
       - "ghcr.io/gitwohq/gitwo:latest-arm64"
     use: buildx
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.runtime
     build_flag_templates:
-      - "--platform=linux/arm64"
       - "--label=org.opencontainers.image.title=gitwo"
       - "--label=org.opencontainers.image.description=Git Workspace companion CLI"
       - "--label=org.opencontainers.image.url=https://gitwo.dev"
