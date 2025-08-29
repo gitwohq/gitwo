@@ -25,7 +25,7 @@ builds:
       - goos: windows
         goarch: arm64
 
-# Keep per-arch darwin builds so archives exist for Homebrew
+# Keep per-arch darwin archives; brew needs them
 universal_binaries:
   - id: gitwo_universal_darwin
     ids: [main]
@@ -57,7 +57,8 @@ changelog:
 # Homebrew Formula → github.com/gitwohq/homebrew-tap
 brews:
   - name: gitwo
-    ids: [main]
+    # IMPORTANT: reference the *archive* id, not build id
+    ids: [default]
     repository:
       owner: gitwohq
       name: homebrew-tap
@@ -71,7 +72,7 @@ brews:
     directory: Formula
     install: |
       bin.install "gitwo"
-      # Ship pre-generated shell completions from the archive:
+      # Install pre-generated shell completions shipped inside the archive
       bash_completion.install "completions/gitwo.bash" => "gitwo"
       zsh_completion.install  "completions/gitwo.zsh"  => "_gitwo"
       fish_completion.install "completions/gitwo.fish" => "gitwo.fish"
