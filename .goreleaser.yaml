@@ -31,10 +31,11 @@ builds:
         goarch: arm64
 
 # (optional) build a single universal binary for macOS
+# IMPORTANT: keep per-arch darwin builds so archives exist for Homebrew
 universal_binaries:
   - id: gitwo_universal_darwin
     ids: [main]
-    replace: true
+    replace: false
     name_template: "{{ .ProjectName }}_{{ .Version }}_darwin_universal"
 
 archives:
