@@ -31,7 +31,7 @@ builds:
         goarch: arm64
 
 # (optional) build a single universal binary for macOS
-# IMPORTANT: keep per-arch darwin builds so archives exist for Homebrew
+# keep per-arch darwin builds so archives exist for Homebrew
 universal_binaries:
   - id: gitwo_universal_darwin
     ids: [main]
@@ -41,7 +41,7 @@ universal_binaries:
 archives:
   - id: default
     ids: [main]
-    formats: [tar.gz]   # v2: use 'formats' (not 'format')
+    formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE
@@ -61,7 +61,7 @@ changelog:
       - '^ci:'
 
 # Homebrew Formula (NOT a cask) → github.com/gitwohq/homebrew-tap
-# v2: use 'repository' and put the token there; 'directory' replaces 'folder'
+# limit Homebrew matrix to the arches you actually build
 brews:
   - name: gitwo
     ids: [main]
@@ -76,6 +76,8 @@ brews:
     description: "Git Workspace companion CLI"
     license: "MIT"
     directory: Formula
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]     # <—— critical; prevents goarch=arm looking for non-existent archives
     install: |
       bin.install "gitwo"
       # Ship pre-generated shell completions from the archive:
@@ -165,7 +167,6 @@ sboms:
       - "{{ .ArtifactName }}.sbom.json"
 
 # Signing (Cosign) — checksums.txt
-# v2: use 'artifacts' (not 'artifact')
 signs:
   - cmd: cosign
     artifacts: checksum
