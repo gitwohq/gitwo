@@ -56,7 +56,10 @@ jobs:
           mkdir -p "$HOME/bin"
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b "$HOME/bin"
           echo "$HOME/bin" >> "$GITHUB_PATH"
-          syft version
+
+      # Verify Syft is on PATH (this is a NEW step so $GITHUB_PATH is applied)
+      - name: Verify Syft
+        run: syft version
 
       # Install cosign only when a private key is provided
       - name: Install cosign (optional)
