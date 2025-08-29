@@ -1,0 +1,8 @@
+{
+    "ref": "refs/tags/v0.1.0",
+    "repository": {
+      "full_name": "gitwohq/gitwo",
+      "name": "gitwo",
+      "owner": { "login": "gitwohq" }
+    }
+}

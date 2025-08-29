@@ -1,0 +1,72 @@
+name: Release (dry-run for act)   # 🟡 DRY RUN: builds locally, no publish, fast feedback
+
+on:
+  workflow_dispatch:              # Run locally with 'act' or manually from the UI
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          check-latest: true
+
+      # Sanity: check the GoReleaser config before building
+      - name: GoReleaser check
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: check
+
+      # Build everything as snapshots (archives + NFPM); do NOT publish anything.
+      # Skip signing, Docker, and image SBOMs for speed and to avoid Buildx/QEMU requirements in dry runs.
+      - name: GoReleaser (snapshot, no publish)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --snapshot --skip-publish --skip=sign --skip=docker --skip=sbom --clean
+        env:
+          GITHUB_TOKEN: ""                      # Explicitly empty so nothing tries to publish
+          HOMEBREW_TAP_GITHUB_TOKEN: ""
+
+      # Show produced artifacts for quick inspection
+      - name: List artifacts in dist/
+        run: |
+          echo "== dist tree =="
+          ls -lah dist || true
+          echo
+          echo "== files =="
+          find dist -maxdepth 2 -type f -print | sort
+          echo
+          echo "== sizes =="
+          find dist -type f -printf "%12s  %p\n" | sort -n || true
+
+      # Enforce NFPM outputs exist (fail fast if packaging broke)
+      - name: Check NFPM outputs exist
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          debs=(dist/*.deb)
+          rpms=(dist/*.rpm)
+          echo "DEBs: ${#debs[@]}   RPMs: ${#rpms[@]}"
+          (( ${#debs[@]} > 0 )) || { echo "No .deb built"; exit 1; }
+          (( ${#rpms[@]} > 0 )) || { echo "No .rpm built"; exit 1; }
+
+      # Optional: upload dist/ as an artifact (in GitHub UI); in 'act' this writes to ./artifacts
+      - name: Upload dist/ (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/

@@ -1,0 +1,9 @@
+{
+    "ref": "refs/heads/main",
+    "repository": {
+      "full_name": "gitwohq/gitwo",
+      "name": "gitwo",
+      "owner": { "login": "gitwohq" }
+    },
+    "inputs": {}
+}

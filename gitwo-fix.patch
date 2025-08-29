@@ -1,0 +1,60 @@
+diff --git a/.goreleaser.yaml b/.goreleaser.yaml
+index 1111111..2222222 100644
+--- a/.goreleaser.yaml
++++ b/.goreleaser.yaml
+@@ -1,20 +1,20 @@
+ version: 2
+ 
+ project_name: gitwo
+ 
+ before:
+   hooks:
+     - go mod tidy
+ 
+ builds:
+   - id: gitwo
+-    main: ./cmd/gitwo/main.go
++    main: .
+     binary: gitwo
+     env:
+       - CGO_ENABLED=0
+     flags:
+       - -trimpath
+     ldflags:
+       - -s -w
+       - -X main.version={{ .Version }}
+       - -X main.commit={{ .Commit }}
+       - -X main.date={{ .Date }}
+@@ -60,6 +60,7 @@ changelog:
+       - '^ci:'
+ 
+ # Homebrew Cask (formula/cask repo: github.com/gitwohq/homebrew-tap)
+ homebrew_casks:
+   - name: gitwo
+     repository:
+       owner: gitwohq
+       name: homebrew-tap
+     commit_author:
+       name: "gitwo-bot"
+       email: "bot@gitwo.dev"
+     homepage: "https://gitwo.dev"
+     description: "Git Workspace companion CLI"
+     directory: Casks
+     binary: gitwo
+ 
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..3333333
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,10 @@
++# Build artifacts
++bin/
++dist/
++
++# Local binary (when built to project root)
++gitwo
++
++# OS noise
++.DS_Store
++

@@ -1,0 +1,12 @@
+# Build artifacts
+bin/
+dist/
+.build-checksum
+
+# Local secrets
+.secrets.env
+
+# OS / editor junk
+.DS_Store
+.idea/
+.vscode/

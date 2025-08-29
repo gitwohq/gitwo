@@ -1,0 +1,183 @@
+version: 2
+
+project_name: gitwo
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: main
+    main: ./cmd/gitwo
+    binary: gitwo
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .Commit }}
+      - -X main.date={{ .Date }}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+# (optional) build a single universal binary for macOS
+universal_binaries:
+  - id: gitwo_universal_darwin
+    ids: [main]
+    replace: true
+    name_template: "{{ .ProjectName }}_{{ .Version }}_darwin_universal"
+
+archives:
+  - id: default
+    ids: [main]
+    formats: [tar.gz]   # v2: use 'formats' (not 'format')
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - completions/
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: git
+  sort: asc
+  filters:
+    exclude:
+      - '^docs?:'
+      - '^test:'
+      - '^ci:'
+
+# Homebrew Formula (NOT a cask) → github.com/gitwohq/homebrew-tap
+# v2: use 'repository' and put the token there; 'directory' replaces 'folder'
+brews:
+  - name: gitwo
+    ids: [main]
+    repository:
+      owner: gitwohq
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: "gitwo-bot"
+      email: "bot@gitwo.dev"
+    homepage: "https://gitwo.dev"
+    description: "Git Workspace companion CLI"
+    license: "MIT"
+    directory: Formula
+    install: |
+      bin.install "gitwo"
+      # Ship pre-generated shell completions from the archive:
+      bash_completion.install "completions/gitwo.bash" => "gitwo"
+      zsh_completion.install  "completions/gitwo.zsh"  => "_gitwo"
+      fish_completion.install "completions/gitwo.fish" => "gitwo.fish"
+    test: |
+      system "#{bin}/gitwo", "--version"
+
+# Linux packages: .deb and .rpm via NFPM
+nfpms:
+  - id: linux_pkgs
+    package_name: gitwo
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}"
+    homepage: "https://gitwo.dev"
+    maintainer: "gitwo team <bot@gitwo.dev>"
+    description: "Git Workspace companion CLI"
+    license: MIT
+    vendor: gitwohq
+    formats: [deb, rpm]
+    dependencies: []
+    contents:
+      - src: ./LICENSE
+        dst: /usr/share/doc/gitwo/LICENSE
+      - src: ./README.md
+        dst: /usr/share/doc/gitwo/README.md
+    bindir: /usr/local/bin
+
+# Docker images (multi-arch) to GHCR
+dockers:
+  # amd64 image
+  - id: docker_amd64
+    ids: [main]
+    image_templates:
+      - "ghcr.io/gitwohq/gitwo:{{ .Tag }}-amd64"
+      - "ghcr.io/gitwohq/gitwo:latest-amd64"
+    use: buildx
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.title=gitwo"
+      - "--label=org.opencontainers.image.description=Git Workspace companion CLI"
+      - "--label=org.opencontainers.image.url=https://gitwo.dev"
+      - "--label=org.opencontainers.image.source={{ .GitURL }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+    goos: linux
+    goarch: amd64
+
+  # arm64 image
+  - id: docker_arm64
+    ids: [main]
+    image_templates:
+      - "ghcr.io/gitwohq/gitwo:{{ .Tag }}-arm64"
+      - "ghcr.io/gitwohq/gitwo:latest-arm64"
+    use: buildx
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.title=gitwo"
+      - "--label=org.opencontainers.image.description=Git Workspace companion CLI"
+      - "--label=org.opencontainers.image.url=https://gitwo.dev"
+      - "--label=org.opencontainers.image.source={{ .GitURL }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+    goos: linux
+    goarch: arm64
+
+# Publish multi-arch manifests that point to the two images above
+docker_manifests:
+  - name_template: "ghcr.io/gitwohq/gitwo:{{ .Tag }}"
+    image_templates:
+      - "ghcr.io/gitwohq/gitwo:{{ .Tag }}-amd64"
+      - "ghcr.io/gitwohq/gitwo:{{ .Tag }}-arm64"
+  - name_template: "ghcr.io/gitwohq/gitwo:latest"
+    image_templates:
+      - "ghcr.io/gitwohq/gitwo:latest-amd64"
+      - "ghcr.io/gitwohq/gitwo:latest-arm64"
+
+# SBOM (Syft) for archives and images — give unique IDs
+sboms:
+  - id: sbom_archives
+    artifacts: archive
+  - id: sbom_images
+    artifacts: image
+
+# Signing (Cosign) — checksums.txt
+# v2: use 'artifacts' (not 'artifact')
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    args: ["sign-blob", "--key=env://COSIGN_PRIVATE_KEY", "--output-signature=${signature}", "${artifact}"]
+    env:
+      - COSIGN_EXPERIMENTAL=1
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-SNAPSHOT-{{ .ShortCommit }}"
+
+release:
+  github:
+    owner: gitwohq
+    name: gitwo
+  draft: false
+  prerelease: false

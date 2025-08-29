@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# gitwo install script
+# Usage:
+#   curl -fsSL https://gitwo.dev/install | bash
+#   curl -fsSL https://gitwo.dev/install | bash -s -- --version v0.1.0
+#
+# Flags:
+#   --version vX.Y.Z   Install a specific version (default: latest release)
+#   --no-verify        Skip sha256 verification for .deb/.rpm
+#
+# Env:
+#   GITWO_VERSION=vX.Y.Z  same as --version
+#   GITWO_NO_VERIFY=1     same as --no-verify
+
+log()  { printf "\033[1;34m==>\033[0m %s\n" "$*"; }
+err()  { printf "\033[1;31m==>\033[0m %s\n" "$*" >&2; }
+die()  { err "$*"; exit 1; }
+
+VERSION="${GITWO_VERSION:-}"
+VERIFY=1
+[[ "${GITWO_NO_VERIFY:-0}" == "1" ]] && VERIFY=0
+
+# Parse args after "--" if piping
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --version|-v) VERSION="${2:-}"; shift 2 ;;
+    --no-verify)  VERIFY=0; shift ;;
+    *) err "Unknown arg: $1"; exit 2;;
+  esac
+done
+
+OS="$(uname -s)"
+ARCH_RAW="$(uname -m)"
+case "$ARCH_RAW" in
+  x86_64|amd64) ARCH=amd64 ;;
+  arm64|aarch64) ARCH=arm64 ;;
+  *) die "Unsupported arch: $ARCH_RAW" ;;
+esac
+
+gh_api() {
+  curl -fsSL -H 'Accept: application/vnd.github+json' -H 'User-Agent: gitwo-installer' "$1"
+}
+
+get_latest_version() {
+  gh_api "https://api.github.com/repos/gitwohq/gitwo/releases/latest" \
+    | grep -oE '"tag_name"\s*:\s*"v[^"]+"' \
+    | head -n1 | sed -E 's/.*"v([^"]+)".*/\1/'
+}
+
+if [[ -z "$VERSION" ]]; then
+  log "Resolving latest gitwo version…"
+  VERSION="$(get_latest_version)" || die "Failed to resolve latest version"
+  [[ -n "$VERSION" ]] || die "Could not parse latest version from GitHub API"
+fi
+
+ASSET_BASE="gitwo_${VERSION}"
+case "$OS" in
+  Darwin)
+    log "Detected macOS (${ARCH}); using Homebrew"
+    if ! command -v brew >/dev/null 2>&1; then
+      log "Installing Homebrew (non-interactive)…"
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || true)"
+      eval "$(/usr/local/bin/brew shellenv 2>/dev/null || true)"
+    fi
+    brew update
+    brew tap gitwohq/tap
+    brew install gitwo
+    log "Installed: $(gitwo --version)"
+    ;;
+  Linux)
+    if command -v apt-get >/dev/null 2>&1; then
+      PKG="${ASSET_BASE}_${ARCH}.deb"
+      URL="https://github.com/gitwohq/gitwo/releases/download/v${VERSION}/${PKG}"
+      TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+      log "Downloading $PKG"
+      curl -fsSL -o "$TMP/$PKG" "$URL" || die "Download failed"
+
+      if [[ "$VERIFY" -eq 1 ]]; then
+        CS="checksums.txt"
+        CS_URL="https://github.com/gitwohq/gitwo/releases/download/v${VERSION}/${CS}"
+        log "Verifying sha256"
+        curl -fsSL -o "$TMP/$CS" "$CS_URL" || die "Checksums download failed"
+        (cd "$TMP" && grep " $PKG$" "$CS" | sha256sum -c -) || die "Checksum mismatch"
+      fi
+
+      log "Installing .deb"
+      sudo dpkg -i "$TMP/$PKG" || sudo apt-get -f install -y
+      log "Installed: $(gitwo --version)"
+    elif command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1 || command -v rpm >/dev/null 2>&1; then
+      PKG="${ASSET_BASE}_${ARCH}.rpm"
+      URL="https://github.com/gitwohq/gitwo/releases/download/v${VERSION}/${PKG}"
+      TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+      log "Downloading $PKG"
+      curl -fsSL -o "$TMP/$PKG" "$URL" || die "Download failed"
+
+      if [[ "$VERIFY" -eq 1 ]]; then
+        CS="checksums.txt"
+        CS_URL="https://github.com/gitwohq/gitwo/releases/download/v${VERSION}/${CS}"
+        log "Verifying sha256"
+        curl -fsSL -o "$TMP/$CS" "$CS_URL" || die "Checksums download failed"
+        (cd "$TMP" && grep " $PKG$" "$CS" | sha256sum -c -) || die "Checksum mismatch"
+      fi
+
+      if command -v dnf >/dev/null 2>&1; then sudo dnf install -y "$TMP/$PKG"
+      elif command -v yum >/dev/null 2>&1; then sudo yum install -y "$TMP/$PKG"
+      else sudo rpm -Uvh "$TMP/$PKG"
+      fi
+      log "Installed: $(gitwo --version)"
+    else
+      log "No APT/RPM found. Falling back to Homebrew (Linuxbrew)."
+      if ! command -v brew >/dev/null 2>&1; then
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv 2>/dev/null || true)"
+      fi
+      brew update
+      brew tap gitwohq/tap
+      brew install gitwo
+      log "Installed: $(gitwo --version)"
+    fi
+    ;;
+  *)
+    die "Unsupported OS: $OS"
+    ;;
+esac
+
+log "Done."

@@ -1,0 +1,63 @@
+name: Release                 # 🟢 REAL release: publishes GH Release, GHCR images, pushes Homebrew formula
+
+on:
+  push:
+    tags:
+      - 'v*'                  # Trigger only on version tags like v0.1.0
+  workflow_dispatch:          # Allow manual run from the UI
+
+permissions:
+  contents: write             # Needed to create releases
+  packages: write             # Needed to push to GHCR
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-22.04
+
+    # Use a PAT that can push to gitwohq/homebrew-tap; we also pass it as GITHUB_TOKEN so
+    # GoReleaser can call the Releases API with sufficient privileges.
+    env:
+      GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}   # Optional; leave empty if not signing
+      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}         # Optional
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # GoReleaser wants tags/history for changelog
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+          check-latest: true
+
+      # Enable multi-arch Docker builds for your GHCR images
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # GHCR login — for image pushes; default workflow GITHUB_TOKEN has packages:write
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Install cosign only when a private key is provided
+      - name: Install cosign (optional)
+        if: ${{ env.COSIGN_PRIVATE_KEY != '' }}
+        uses: sigstore/cosign-installer@v3
+
+      # REAL run: publishes releases, pushes GHCR, pushes Homebrew formula (uses token in .goreleaser.yaml)
+      - name: Run GoReleaser (publish)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          # Skip signing automatically if no Cosign key is set
+          args: ${{ env.COSIGN_PRIVATE_KEY != '' && 'release --clean' || 'release --clean --skip=sign' }}

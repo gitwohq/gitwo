@@ -1,0 +1,12 @@
+name: Docs
+on:
+  push:
+    paths: ["docs/**", "scripts/sync-readmes.mjs"]
+  pull_request:
+    paths: ["docs/**", "scripts/sync-readmes.mjs"]
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: cd docs && npm ci && npm run build
